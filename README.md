@@ -6,6 +6,10 @@
 <p align="center"><strong>你的阅读行车记录仪，让看过的信息成为下一次思考的起点。</strong></p>
 <p align="center">macOS 14+ · SwiftUI · ScreenCaptureKit · Vision OCR · TypeSafe / Jev · SQLite</p>
 <p align="center">
+  <a href="https://github.com/Gackson/Jev-dashcam/releases/download/v0.2.0/Jev-dashcam-v0.2.0-macos-arm64.zip"><strong>下载 Mac 体验版（Apple Silicon）</strong></a> ·
+  <a href="https://github.com/Gackson/Jev-dashcam/releases/tag/v0.2.0">安装说明与更新记录</a>
+</p>
+<p align="center">
   <a href="#为什么做这个项目">项目动机</a> ·
   <a href="#核心体验">核心体验</a> ·
   <a href="#设计思考">设计思考</a> ·
@@ -135,7 +139,16 @@ flowchart LR
 
 ## 快速开始
 
-### 构建 macOS App（推荐）
+### 直接下载体验
+
+从 [GitHub Release](https://github.com/Gackson/Jev-dashcam/releases/tag/v0.2.0) 下载 `Jev-dashcam-v0.2.0-macos-arm64.zip`，解压后将 `Jev-dashcam.app` 拖入「应用程序」。**无需下载源码、安装 Node.js 或编译项目。**
+
+- 支持 Apple Silicon（M 系列芯片），构建目标为 macOS 14+；尚未在所有支持的系统版本上实机验证，不提供 Intel 版。
+- 当前为未公证的黑客松体验版。若系统因无法验证开发者而阻止打开，请核对下载来源后，按照 [Apple 官方说明](https://support.apple.com/zh-cn/102445)在「系统设置 → 隐私与安全性」中处理「仍要打开」。不要关闭系统安全保护；若系统提示恶意软件或文件损坏，请停止使用并反馈。
+- 在应用设置中填写自己的 TypeSafe API Key。API 调用使用该 Key 的额度；安装包不包含开发者密钥或个人资料。
+- 开始采集时，需要授予 Jev-dashcam 屏幕录制权限；系统提示重启时，请退出并重新打开。也可以先通过「手动录入」体验文字归类。
+
+### 从源码构建 macOS App
 
 需要 **macOS 14+、Xcode Command Line Tools、独立分发版 Node.js 22.13+**。Node 建议使用官方 macOS 分发包；构建脚本会检查运行环境是否能独立打包。
 
