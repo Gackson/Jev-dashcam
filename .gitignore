@@ -1,0 +1,7 @@
+.env
+.env.*
+!.env.example
+data/
+build/
+.DS_Store
+node_modules/

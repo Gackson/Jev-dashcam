@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jev-dashcam · 让知识自然生长</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="Jev-dashcam 首页"><img src="/favicon.svg" alt=""><span>Jev<span class="brand-note">-dashcam</span></span></a>
+    <div class="workspace"><span class="avatar">J</span><div>我的知识花园<small>PERSONAL SPACE</small></div><span class="local-dot" title="本地工作空间"></span></div>
+    <nav aria-label="资料导航" id="navigation"></nav>
+    <div class="section-label">关注的话题 <button class="icon-button" id="add-topic-small" aria-label="添加话题">＋</button></div>
+    <nav id="topic-nav" aria-label="话题"></nav>
+    <button class="add-topic" id="add-topic">＋ 创建一个关注话题</button>
+    <div class="sidebar-bottom"><div class="local-indicator"><span></span> 资料保存在此 Mac</div><a href="/api/export" class="export-link">导出资料 <span>↗</span></a><div class="version">JEV-DASHCAM <span>PROTOTYPE 0.1</span></div></div>
+  </aside>
+  <div class="shell">
+    <header><div class="breadcrumb">我的空间 <span>/</span> <b id="breadcrumb">全部资料</b></div><div class="header-actions"><button class="subtle" id="import-button">＋ 手动录入</button><button class="primary" id="capture-button"><span>▶</span> 开始采集</button></div></header>
+    <div id="error-banner" class="banner" role="alert" hidden></div>
+    <main>
+      <section class="intro"><div><div class="eyebrow"><span></span> A LITTLE EVERY DAY</div><h1>让看过的，<br>成为<span class="serif-accent">你的。</span></h1><p>你只管探索，Jev 帮你留意。<br>把日常遇到的好内容，慢慢收进关心的话题。</p></div>
+        <div class="garden-art" aria-hidden="true"><div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div><div class="paper paper-back"><span></span><span></span><span></span></div><div class="paper paper-front"><div class="leaf"><i></i><i></i><i></i><i></i></div><span></span><span></span><span></span><div class="paper-tag">a thought, kept.</div></div><div class="spark spark-one">✳</div><div class="spark spark-two">＋</div><div class="art-caption">COLLECT SMALL. THINK BIG.</div></div>
+      </section>
+      <div class="content-layout"><section class="library"><div class="library-heading"><div><h2 id="view-title">你的资料库 <span id="record-count">0</span></h2><p id="view-description">每一份收集，都有迹可循。</p></div><button class="subtle" id="demo-button">体验示例 ↗</button></div>
+        <div class="filters"><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="搜索标题、文字或来源…" aria-label="搜索资料"><kbd>⌘ K</kbd></label><span class="sort-label">最近收集 ↓</span></div>
+        <div id="records" class="records"></div>
+      </section>
+      <aside class="insights"><section class="collector-card"><div class="card-eyebrow">你的收集助手 <span class="tiny-logo">j.</span></div><div class="status-title"><span id="status-dot" class="status-dot"></span><h3 id="capture-title">等待开启</h3></div><p id="capture-message">开始采集后，新内容会自动出现在这里。</p><div class="wave" id="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="capture-stats"><div><b id="sample-count">0</b><span>画面采样</span></div><div><b id="matched-count">0</b><span>已归类资料</span></div></div><div class="collector-footer"><span id="model-dot" class="local-dot"></span><span id="model-label">Jev 正在准备</span></div></section>
+        <section class="activity"><div class="section-label">最近动态 <span id="queue-count"></span></div><div id="activity-list"><p class="quiet">下一次发现，从这里开始。</p></div></section>
+        <section class="little-note"><span>✳</span><p>给一个话题，<br>让灵感自己找到归处。</p><small>标签可以是兴趣，也可以是一个正在努力的目标。</small></section>
+      </aside></div>
+      <footer><span>Built for your curiosity.</span><span>LOCAL FIRST · POWERED BY JEV</span></footer>
+    </main>
+  </div>
+  <dialog id="topic-dialog"><form id="topic-form"><div class="dialog-top"><span class="eyebrow">A NEW SEED</span><button type="button" class="icon-button" data-close aria-label="关闭">×</button></div><h2>最近，你在关注什么？</h2><p class="dialog-description">告诉 Jev 你想了解的事，它会帮你留意相关内容。</p><label>话题名称<input name="name" required maxlength="60" placeholder="比如：AI 笔记产品" autocomplete="off"></label><label>具体关注什么 <span class="optional">可选</span><textarea name="description" rows="4" maxlength="1000" placeholder="比如：自动收集、个人知识库、信息整理工具和相关竞品。描述越具体，归类越准确。"></textarea></label><div class="dialog-actions"><button type="button" class="subtle" data-close>取消</button><button class="primary" type="submit">创建话题 ↗</button></div></form></dialog>
+  <dialog id="import-dialog"><form id="import-form"><div class="dialog-top"><span class="eyebrow">KEEP A THOUGHT</span><button type="button" class="icon-button" data-close aria-label="关闭">×</button></div><h2>把好内容留下来</h2><p class="dialog-description">粘贴一段文字，Jev 会自动匹配你关注的话题。</p><label>标题<input name="title" maxlength="180" placeholder="这份内容叫什么？"></label><label>原文<textarea name="text" required minlength="10" maxlength="100000" rows="7" placeholder="粘贴至少 10 个字的内容…"></textarea></label><label>来源链接 <span class="optional">可选</span><input name="url" type="url" placeholder="https://"></label><div class="dialog-actions"><button type="button" class="subtle" data-close>取消</button><button class="primary" type="submit">收集并归类 ↗</button></div></form></dialog>
+  <dialog id="capture-dialog"><div class="dialog-top"><span class="eyebrow">LET CURIOSITY LEAD</span><button class="icon-button" data-close aria-label="关闭">×</button></div><h2>开启你的收集助手</h2><p class="dialog-description">Jev 会留意前台窗口的变化，在内容稳定后提取文字。</p><div class="capture-explainer"><p><b>01</b><span>截图与原文保存在这台 Mac。</span></p><p><b>02</b><span>识别出的文字发送至 TypeSafe，用于话题归类。</span></p><p><b>03</b><span>随时暂停。Jev-dashcam 自身和密码应用会跳过。</span></p></div><p class="small-help">首次使用需要 macOS 屏幕录制授权。尚未匹配的话题资料会保留在「待整理」。</p><div class="dialog-actions"><button class="subtle" data-close>稍后</button><button class="primary" id="confirm-capture">开始采集 ↗</button></div></dialog>
+  <dialog id="detail-dialog" class="detail-dialog"><div id="detail-content"></div></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <script type="module" src="/app.js"></script>
+</body></html>
