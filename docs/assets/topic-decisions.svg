@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="514" viewBox="0 0 1280 514" role="img" aria-labelledby="title desc">
+  <title id="title">一份资料，多个独立判断</title>
+  <desc id="desc">示意文章独立判断三个话题，假设返回 0.93、0.84 和 0.12，前两个达到 0.75 阈值。数字仅为机制示意，不是实际评测。人工调整优先于自动判断。</desc>
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M1 1L6 4L1 7" fill="none" stroke="#839178" stroke-width="1.6"/></marker></defs>
+  <rect width="1280" height="514" rx="24" fill="#f5f5ee"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">
+    <text x="48" y="60" font-size="28" font-weight="700" fill="#203a2b">一份资料，多个独立判断</text>
+    <text x="48" y="95" font-size="17" fill="#66715f">问题是「对这个目标是否有实质帮助？」；每个话题各自判断，可以多选，也可以全部不选。</text>
+    <rect x="48" y="151" width="310" height="236" rx="16" fill="#fffef9" stroke="#d6dece"/>
+    <text x="72" y="185" font-size="12" letter-spacing="2" fill="#76806f">ONE DOCUMENT</text>
+    <text x="72" y="226" font-size="22" font-weight="650" fill="#203a2b">如何设计 AI 笔记产品</text>
+    <text x="72" y="266" font-size="16" fill="#66715f">正文：知识库、用户反馈、</text>
+    <text x="72" y="294" font-size="16" fill="#66715f">信息整理与交互设计……</text>
+    <path d="M72 317H333" stroke="#e1e6d9"/>
+    <text x="72" y="352" font-size="14" fill="#76806f">忽略导航、侧栏和偶然出现的词</text>
+    <path d="M358 266H399 M399 191V343 M399 191H441 M399 267H441 M399 343H441" fill="none" stroke="#839178" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="451" y="139" font-size="13" fill="#76806f">同一次请求 · 三个 Noul</text>
+    <rect x="451" y="161" width="475" height="60" rx="12" fill="#e3eadb"/>
+    <text x="471" y="198" font-size="19" font-weight="600" fill="#294a35">AI 笔记</text>
+    <rect x="615" y="184" width="214" height="13" rx="6" fill="#d0dbc6"/>
+    <rect x="615" y="184" width="199" height="13" rx="6" fill="#557d46"/>
+    <text x="900" y="198" text-anchor="end" font-size="19" fill="#294a35">0.93</text>
+    <rect x="451" y="237" width="475" height="60" rx="12" fill="#e3eadb"/>
+    <text x="471" y="274" font-size="19" font-weight="600" fill="#294a35">产品设计</text>
+    <rect x="615" y="260" width="214" height="13" rx="6" fill="#d0dbc6"/>
+    <rect x="615" y="260" width="180" height="13" rx="6" fill="#557d46"/>
+    <text x="900" y="274" text-anchor="end" font-size="19" fill="#294a35">0.84</text>
+    <rect x="451" y="313" width="475" height="60" rx="12" fill="#eaece4"/>
+    <text x="471" y="350" font-size="19" font-weight="600" fill="#66715f">咖啡研究</text>
+    <rect x="615" y="336" width="214" height="13" rx="6" fill="#daddd2"/>
+    <rect x="615" y="336" width="26" height="13" rx="6" fill="#939d89"/>
+    <text x="900" y="350" text-anchor="end" font-size="19" fill="#66715f">0.12</text>
+    <g stroke="#839178" stroke-width="2" marker-end="url(#arrow)"><path d="M926 191H988"/><path d="M926 267H988"/><path d="M926 343H988"/></g>
+    <text x="1006" y="139" font-size="13" fill="#76806f">代码应用阈值 ≥ 0.75</text>
+    <text x="1006" y="198" font-size="20" font-weight="600" fill="#355d3a">归入话题</text>
+    <text x="1006" y="274" font-size="20" font-weight="600" fill="#355d3a">归入话题</text>
+    <text x="1006" y="350" font-size="20" fill="#76806f">不归入</text>
+    <path d="M48 416H1232" stroke="#d6dece"/>
+    <text x="48" y="454" font-size="15" fill="#66715f">保留全部概率 · 人工调整优先 · 展示分组不改变逐张判断</text>
+    <text x="1232" y="454" text-anchor="end" font-size="13" fill="#7d8676">数值仅为机制示意，不代表实测结果</text>
+  </g>
+</svg>

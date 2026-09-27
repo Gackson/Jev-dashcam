@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="650" viewBox="0 0 1280 650" role="img" aria-labelledby="title desc">
+  <title id="title">Jev-dashcam：让阅读留下线索，让 AI 接上思考</title>
+  <desc id="desc">产品流程示意：日常浏览经过本地截图和 OCR，由 Jev 按关注目标判断相关性，保留原始证据，再通过话题快照交给 Agent。</desc>
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M 32 0 L 0 0 0 32" fill="none" stroke="#e5e7de" stroke-width="1"/></pattern>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M1 1L6 4L1 7" fill="none" stroke="#617258" stroke-width="1.6"/></marker>
+  </defs>
+  <rect width="1280" height="650" rx="24" fill="#f5f5ee"/>
+  <rect x="0" y="275" width="1280" height="375" fill="url(#grid)"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">
+    <rect x="48" y="42" width="36" height="36" rx="11" fill="#244c37"/>
+    <path d="M57 51h18v18H57z M62 56h8M62 61h8M62 66h5" fill="none" stroke="#d9edb7" stroke-width="2"/>
+    <text x="98" y="68" font-size="24" font-weight="650" fill="#203a2b">Jev-dashcam</text>
+    <rect x="994" y="44" width="238" height="32" rx="16" fill="#e3eadb"/>
+    <text x="1113" y="65" text-anchor="middle" font-size="13" letter-spacing="2" fill="#476142">HACKATHON PROTOTYPE</text>
+    <text x="48" y="151" font-size="49" font-weight="700" letter-spacing="-1" fill="#203a2b">让阅读留下线索，</text>
+    <text x="48" y="214" font-size="49" font-weight="700" letter-spacing="-1" fill="#203a2b">让 AI 接上思考。</text>
+    <text x="51" y="254" font-size="20" fill="#66715f">日常浏览 → 目标驱动的资料库 → 有据可查的 Agent 上下文</text>
+    <text x="1000" y="165" font-size="14" letter-spacing="3" fill="#6c7964">READ.</text>
+    <text x="1000" y="198" font-size="14" letter-spacing="3" fill="#6c7964">KEEP.</text>
+    <text x="1000" y="231" font-size="14" letter-spacing="3" fill="#6c7964">CONTINUE.</text>
+
+    <g fill="none" stroke="#617258" stroke-width="2" marker-end="url(#arrow)"><path d="M312 424H357"/><path d="M613 424H658"/><path d="M914 424H959"/></g>
+    <rect x="48" y="316" width="264" height="216" rx="18" fill="#fffef9" stroke="#d6dece"/>
+    <text x="72" y="351" font-size="12" font-weight="600" letter-spacing="2" fill="#76806f">01 / CAPTURE</text>
+    <rect x="72" y="373" width="91" height="55" rx="6" fill="#edf0e5" stroke="#bccab5"/>
+    <path d="M72 388h91 M81 381h3m5 0h3m5 0h3 M82 399h68m-68 9h52m-52 9h61" stroke="#9eaf94" stroke-width="2"/>
+    <text x="72" y="467" font-size="23" font-weight="650" fill="#203a2b">像平常一样阅读</text>
+    <text x="72" y="499" font-size="16" fill="#66715f">前台窗口 · 本地截图与 OCR</text>
+
+    <rect x="365" y="316" width="248" height="216" rx="18" fill="#244c37"/>
+    <text x="389" y="351" font-size="12" font-weight="600" letter-spacing="2" fill="#bccfab">02 / JUDGE</text>
+    <rect x="389" y="379" width="75" height="42" rx="10" fill="#d9edb7"/>
+    <text x="426" y="407" text-anchor="middle" font-size="24" font-weight="700" fill="#244c37">Jev</text>
+    <text x="477" y="405" font-size="14" fill="#d7e5cc">Noul × 话题</text>
+    <text x="389" y="467" font-size="23" font-weight="650" fill="#f1f6e7">理解你的关注点</text>
+    <text x="389" y="499" font-size="16" fill="#d0dec5">独立判断 · 多话题归类</text>
+
+    <rect x="666" y="316" width="248" height="216" rx="18" fill="#fffef9" stroke="#d6dece"/>
+    <text x="690" y="351" font-size="12" font-weight="600" letter-spacing="2" fill="#76806f">03 / KEEP</text>
+    <rect x="705" y="375" width="66" height="48" rx="5" fill="#e3eadb" stroke="#afbea4" transform="rotate(9 738 399)"/>
+    <rect x="690" y="378" width="66" height="48" rx="5" fill="#f4f6ec" stroke="#afbea4"/>
+    <path d="M700 391h35m-35 10h45m-45 10h27" stroke="#8b9e7e" stroke-width="2"/>
+    <text x="690" y="467" font-size="23" font-weight="650" fill="#203a2b">资料带着证据归档</text>
+    <text x="690" y="499" font-size="16" fill="#66715f">原图 · 文字 · 来源 · 时间</text>
+
+    <rect x="967" y="316" width="265" height="216" rx="18" fill="#e3eadb" stroke="#bdcdb0"/>
+    <text x="991" y="351" font-size="12" font-weight="600" letter-spacing="2" fill="#67795b">04 / CONTINUE</text>
+    <rect x="991" y="379" width="178" height="42" rx="9" fill="#fffef9"/>
+    <text x="1080" y="406" text-anchor="middle" font-size="17" font-weight="600" fill="#35503b">copy prompt ↗</text>
+    <text x="991" y="467" font-size="23" font-weight="650" fill="#203a2b">让 Agent 接着思考</text>
+    <text x="991" y="499" font-size="16" fill="#66715f">话题快照 · 原始截图引用</text>
+    <text x="48" y="593" font-size="15" fill="#66715f">macOS 原生界面</text>
+    <circle cx="218" cy="587" r="3" fill="#9dad92"/>
+    <text x="239" y="593" font-size="15" fill="#66715f">本地保存证据</text>
+    <circle cx="391" cy="587" r="3" fill="#9dad92"/>
+    <text x="412" y="593" font-size="15" fill="#66715f">人工可纠正</text>
+    <text x="1232" y="593" text-anchor="end" font-size="13" fill="#7d8676">产品流程示意 · 非应用截图</text>
+  </g>
+</svg>
