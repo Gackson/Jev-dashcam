@@ -40,6 +40,7 @@ db.exec(`PRAGMA journal_mode=WAL;
 `);
 const migration = migrateCaptureRecords(db, dataDir);
 if (!db.prepare('PRAGMA table_info(records)').all().some(column => column.name === 'session_id')) db.exec('ALTER TABLE records ADD COLUMN session_id TEXT');
+if (!db.prepare('PRAGMA table_info(records)').all().some(column => column.name === 'topic_snapshot')) db.exec('ALTER TABLE records ADD COLUMN topic_snapshot TEXT');
 const projectMigration = migrateLegacyProjects(db, dataDir, captureOptions.windowReturnSeconds);
 db.exec("CREATE INDEX IF NOT EXISTS records_retention ON records(status, created) WHERE kind='capture'");
 db.prepare("UPDATE records SET status='pending' WHERE status='processing'").run();
@@ -49,6 +50,8 @@ const palette = ['sage', 'peach', 'blue', 'lavender', 'yellow'];
 const queue = new Set();
 let working = false;
 let collector = null;
+let shuttingDown = false;
+const captureChildren = new Set();
 const status = { capture: 'paused', message: '准备好后，开始收集你的灵感', app: '', samples: 0, duplicates: 0, lastCapture: null, error: null };
 const events = [];
 function event(message, type = 'info') { events.unshift({ id: randomUUID(), message, type, time: new Date().toISOString() }); events.splice(20); }
@@ -56,6 +59,7 @@ function topics() { return db.prepare('SELECT * FROM topics ORDER BY created').a
 function record(row) {
   if (!row) return null;
   const item = { ...row, frames: JSON.parse(row.frames), scores: JSON.parse(row.scores), manual: JSON.parse(row.manual) };
+  delete item.topic_snapshot;
   return { ...item, labels: labelIds(item, topics()) };
 }
 function allRecords() { return db.prepare('SELECT * FROM records ORDER BY updated DESC').all().map(record); }
@@ -64,36 +68,42 @@ function removeShot(name) {
     try { unlinkSync(join(shots, name)); } catch {}
   }
 }
-function schedule(id) {
-  db.prepare("UPDATE records SET status='pending', error=NULL WHERE id=? AND status!='processing'").run(id);
+function schedule(id, { preserveSnapshot = false } = {}) {
+  const snapshot = JSON.stringify(topics());
+  db.prepare(`UPDATE records SET status=CASE WHEN status='processing' THEN status ELSE 'pending' END, error=NULL,
+    topic_snapshot=${preserveSnapshot ? 'COALESCE(topic_snapshot, ?)' : '?'} WHERE id=?`).run(snapshot, id);
   queue.add(id); void work();
 }
 async function work() {
-  if (working) return;
+  if (working || shuttingDown) return;
   working = true;
   try {
-    while (queue.size) {
+    while (queue.size && !shuttingDown) {
       const id = queue.values().next().value;
       queue.delete(id);
-      const item = record(db.prepare('SELECT * FROM records WHERE id=?').get(id));
+      const row = db.prepare('SELECT * FROM records WHERE id=?').get(id);
+      const item = record(row);
       if (!item) continue;
-      const selectedTopics = topics();
+      const selectedTopics = row.topic_snapshot ? JSON.parse(row.topic_snapshot) : topics();
       if (!selectedTopics.length) {
         db.prepare("UPDATE records SET status='unmatched', error=NULL WHERE id=?").run(id); continue;
       }
       db.prepare("UPDATE records SET status='processing', error=NULL WHERE id=?").run(id);
       try {
         const result = await classify(item, selectedTopics);
-        const latest = db.prepare('SELECT updated FROM records WHERE id=?').get(id);
+        if (shuttingDown) return;
+        const latest = db.prepare('SELECT updated, topic_snapshot, manual FROM records WHERE id=?').get(id);
         if (!latest) continue;
-        // A new screenshot or topic may arrive while inference is running.
-        if (latest.updated !== item.updated || JSON.stringify(topics()) !== JSON.stringify(selectedTopics)) {
+        // Only explicitly scheduled work replaces the topic snapshot. Editing a topic
+        // must not invalidate or rerun existing jobs.
+        if (latest.updated !== item.updated || latest.topic_snapshot !== row.topic_snapshot) {
           queue.add(id); continue;
         }
-        const matched = labelIds({ scores: result.scores, manual: item.manual }, selectedTopics).length;
+        const matched = labelIds({ scores: result.scores, manual: JSON.parse(latest.manual) }, topics()).length;
         db.prepare('UPDATE records SET scores=?, status=?, model=?, error=NULL WHERE id=?').run(JSON.stringify(result.scores), matched ? 'classified' : 'unmatched', result.model || null, id);
         event(matched ? `「${item.title.slice(0, 30)}」已归入 ${matched} 个话题` : `已检查「${item.title.slice(0, 30)}」，暂未匹配话题`, matched ? 'match' : 'info');
       } catch (error) {
+        if (shuttingDown) return;
         const message = error.name === 'TimeoutError' ? 'Jev 响应超时，资料已保存，可重试' : error.message === 'fetch failed' ? '无法连接 Jev，资料已保存，请检查网络后重试' : error.message;
         db.prepare("UPDATE records SET status='error', error=? WHERE id=?").run(message, id);
         event(message, 'error');
@@ -132,6 +142,8 @@ function startCapture() {
   status.capture = 'starting'; status.error = null; status.message = '正在连接 Mac 屏幕…';
   const child = spawn(helper, [shots, '--exclusions', exclusionsFile], { stdio: ['ignore', 'pipe', 'pipe'] });
   collector = child;
+  captureChildren.add(child);
+  child.once('close', () => captureChildren.delete(child));
   windowSessions.reset();
   let buffer = '';
   child.stdout.on('data', chunk => {
@@ -140,16 +152,16 @@ function startCapture() {
     for (const line of parts) {
       try {
         const item = JSON.parse(line);
-        if (collector !== child) { if (item.type === 'capture') removeShot(item.screenshot); continue; }
+        if (shuttingDown || collector !== child) { if (item.type === 'capture') removeShot(item.screenshot); continue; }
         if (item.type === 'focus') windowSessions.observe(item.windowKey || null, Date.now(), captureOptions.windowReturnSeconds);
         if (item.type === 'ready') { status.capture = 'running'; status.message = '正在留意新内容'; event('自动采集已开始'); }
         if (item.type === 'permission' && !item.granted) {
           status.capture = 'permission'; status.message = '需要屏幕录制权限';
-          status.error = desktopToken ? '在系统设置 → 隐私与安全性 → 屏幕与系统音频录制中允许 Jev-dashcam，然后退出并重新打开 App。' : '在系统设置 → 隐私与安全性 → 屏幕与系统音频录制中，允许启动服务的终端或 Codex。授权后重启服务，再开始采集。';
+          status.error = desktopToken ? '在系统设置 → 隐私与安全性 → 屏幕与系统音频录制中允许 Dashcam，然后退出并重新打开 App。' : '在系统设置 → 隐私与安全性 → 屏幕与系统音频录制中，允许启动服务的终端或 Codex。授权后重启服务，再开始采集。';
           event('等待屏幕录制授权', 'error');
         }
         if (item.type === 'tick') { status.samples = item.samples; status.app = item.app; status.message = '正在留意新内容'; status.error = null; }
-        if (item.type === 'skipped') { status.app = item.app; status.message = item.reason === 'self' ? '查看资料中，已跳过 Jev-dashcam 窗口' : item.reason === 'window-excluded' ? '此窗口已排除采集' : '此应用已排除采集'; }
+        if (item.type === 'skipped') { status.app = item.app; status.message = item.reason === 'self' ? '查看资料中，已跳过 Dashcam 窗口' : item.reason === 'window-excluded' ? '此窗口已排除采集' : '此应用已排除采集'; }
         if (item.type === 'capture') {
           const sessionID = item.windowKey ? windowSessions.observe(item.windowKey, Date.now(), captureOptions.windowReturnSeconds) : null;
           ingest({ ...item, sessionID });
@@ -174,8 +186,8 @@ function stopCapture() {
 }
 let cleaning = false;
 async function cleanPendingCaptures() {
-  if (cleaning) return;
-  const expired = expiredPendingCaptures(db, { recording: collector !== null && status.capture === 'running' });
+  if (cleaning || shuttingDown) return;
+  const expired = expiredPendingCaptures(db, { recording: collector !== null && status.capture === 'running', retentionHours: captureOptions.pendingRetentionHours });
   if (!expired.length) return;
   cleaning = true;
   try {
@@ -196,7 +208,7 @@ async function cleanPendingCaptures() {
         }
       }
     }
-    event(`已清理 ${expired.length} 份超过一小时的待归类截图`);
+    event(`已清理 ${expired.length} 份超过保留时长的待归类截图`);
   } finally { cleaning = false; }
 }
 const cleanupTimer = setInterval(() => { void cleanPendingCaptures().catch(() => event('待归类内容清理失败，下次检查时重试', 'error')); }, retentionSweepMs);
@@ -208,14 +220,14 @@ const fixtures = [
   { title: '把 AI 分类变成一个可组合的函数', text: 'Building reliable AI agents with typed decisions\nA small model can judge whether a document is relevant to a user goal. Ask independent yes/no questions for each topic, then let ordinary code choose thresholds and store matching results.\nTyped model outputs support predictable routing, evaluation, and testing. Preserve original evidence so later reasoning agents can cite sources in their answers.', app: '示例文章' },
   { title: '周末的一杯手冲咖啡', text: '今天尝试了一支浅烘焙埃塞俄比亚咖啡豆。用 15 克咖啡粉，搭配 240 克热水，分三段注水。杯中有柑橘和白花的香气，放凉之后甜感更加明显。下次可以尝试稍微降低水温。', app: '示例随笔' },
 ];
-function addTopic(name, description) {
+function addTopic(name, description, { reclassifyExisting = true } = {}) {
   const existing = topics();
   if (existing.length >= 20) throw new Error('原型最多支持 20 个话题');
   if (!name?.trim()) throw new Error('请填写话题名称');
   if (existing.some(t => t.name === name.trim())) throw new Error('这个话题已经存在');
   const id = 't_' + randomUUID().replaceAll('-', '');
   db.prepare('INSERT INTO topics VALUES (?,?,?,?,?)').run(id, name.trim().slice(0, 60), String(description || '').slice(0, 1000), palette[existing.length % palette.length], new Date().toISOString());
-  for (const item of allRecords()) schedule(item.id);
+  if (reclassifyExisting) for (const item of allRecords()) schedule(item.id);
   return id;
 }
 async function body(req) {
@@ -225,6 +237,7 @@ async function body(req) {
 }
 function send(res, value, code = 200) { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(value)); }
 const server = http.createServer(async (req, res) => {
+  if (shuttingDown) return send(res, { error: '服务正在关闭' }, 503);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('Content-Security-Policy', "default-src 'self'; style-src 'self'; img-src 'self' data:; script-src 'self'; frame-ancestors 'none'; base-uri 'none'");
@@ -236,7 +249,7 @@ const server = http.createServer(async (req, res) => {
     const path = new URL(req.url, `http://127.0.0.1:${port}`).pathname;
     if (req.method === 'GET' && path === '/api/state') return send(res, { capturePreferences: captureOptions, windowExclusions, topics: topics(), records: allRecords(), status: { ...status, queue: queue.size + (working ? 1 : 0), modelConfigured: Boolean(process.env.TYPESAFE_API_KEY), model: process.env.TYPESAFE_MODEL || 'jev-latest', helperReady: existsSync(helper) }, events });
     if (req.method === 'POST' && path === '/api/capture-preferences') {
-      const options = capturePreferences(await body(req));
+      const options = capturePreferences({ ...captureOptions, ...await body(req) });
       writeFileSync(capturePreferencesFile + '.tmp', JSON.stringify(options), { mode: 0o600 });
       renameSync(capturePreferencesFile + '.tmp', capturePreferencesFile);
       captureOptions = options;
@@ -267,17 +280,62 @@ const server = http.createServer(async (req, res) => {
       return send(res, { ok: true });
     }
     if (req.method === 'POST' && path === '/api/topics') { const b = await body(req); return send(res, { id: addTopic(b.name, b.description) }); }
+    if (req.method === 'PATCH' && path.startsWith('/api/topics/')) {
+      const id = path.split('/').pop(); const b = await body(req);
+      if (!db.prepare('SELECT id FROM topics WHERE id=?').get(id)) return send(res, { error: '话题不存在' }, 404);
+      if (typeof b.name !== 'string' || !b.name.trim() || b.name.trim().length > 60 || typeof b.description !== 'string' || b.description.length > 1000) throw new Error('标题需为 1–60 字，简介最多 1000 字');
+      const name = b.name.trim();
+      if (db.prepare('SELECT id FROM topics WHERE name=? AND id!=?').get(name, id)) throw new Error('这个话题名称已经存在');
+      db.prepare('UPDATE topics SET name=?, description=? WHERE id=?').run(name, b.description.trim(), id);
+      // Do not schedule records or modify their stored classification snapshots.
+      return send(res, { ok: true });
+    }
     if (req.method === 'POST' && path === '/api/capture/start') { await body(req); startCapture(); return send(res, { ok: true }); }
     if (req.method === 'POST' && path === '/api/capture/stop') { await body(req); stopCapture(); return send(res, { ok: true }); }
     if (req.method === 'POST' && path === '/api/import') { const b = await body(req); return send(res, ingest({ text: b.text, title: b.title, url: b.url, kind: 'manual', app: '手动录入' })); }
     if (req.method === 'POST' && path === '/api/demo') {
       await body(req);
       const seeds = [['AI 笔记', '自动收集信息、个人知识库、AI 笔记产品和相关竞品'], ['产品设计', '用户体验、界面设计、交互反馈与设计方法'], ['AI Agent', 'AI agents, typed model decisions, tools, orchestration and evaluation']];
-      for (const [name, description] of seeds) if (!topics().some(t => t.name === name)) addTopic(name, description);
-      for (const fixture of fixtures) ingest({ ...fixture, kind: 'demo' });
-      return send(res, { ok: true });
+      for (const [name, description] of seeds) {
+        if (topics().length < 20 && !topics().some(t => t.name === name)) addTopic(name, description, { reclassifyExisting: false });
+      }
+      const results = fixtures.map(fixture => ingest({ ...fixture, kind: 'demo' }));
+      return send(res, { ok: true, ids: results.map(result => result.id), added: results.filter(result => !result.duplicate).length });
     }
-    if (req.method === 'POST' && path === '/api/retry') { await body(req); for (const item of allRecords().filter(r => ['error', 'pending'].includes(r.status))) schedule(item.id); return send(res, { ok: true }); }
+    if (req.method === 'POST' && path === '/api/retry') {
+      const b = await body(req);
+      if (b.ids !== undefined && (!Array.isArray(b.ids) || b.ids.length > 500 || b.ids.some(id => typeof id !== 'string'))) throw new Error('无效的资料列表');
+      const requested = b.ids === undefined ? null : new Set(b.ids);
+      const failed = allRecords().filter(item => item.status === 'error' && (!requested || requested.has(item.id)));
+      for (const item of failed) schedule(item.id, { preserveSnapshot: true });
+      return send(res, { ok: true, count: failed.length });
+    }
+    if (req.method === 'POST' && path === '/api/records/batch') {
+      const b = await body(req);
+      if (!['classify', 'delete'].includes(b.action) || !Array.isArray(b.ids) || !b.ids.length || b.ids.some(id => typeof id !== 'string')) throw new Error('无效的批量操作');
+      const ids = [...new Set(b.ids)];
+      const items = ids.map(id => record(db.prepare('SELECT * FROM records WHERE id=?').get(id)));
+      if (items.some(item => !item)) return send(res, { error: '部分资料已不存在，请刷新后重试' }, 404);
+      if (b.action === 'classify' && (!topics().some(t => t.id === b.topicId) || typeof b.matched !== 'boolean')) throw new Error('无效的话题');
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        for (const item of items) {
+          if (b.action === 'classify') {
+            item.manual[b.topicId] = b.matched;
+            db.prepare('UPDATE records SET manual=? WHERE id=?').run(JSON.stringify(item.manual), item.id);
+          } else {
+            db.prepare('DELETE FROM seen WHERE record_id=?').run(item.id);
+            db.prepare('DELETE FROM records WHERE id=?').run(item.id);
+          }
+        }
+        db.exec('COMMIT');
+      } catch (error) { db.exec('ROLLBACK'); throw error; }
+      if (b.action === 'delete') for (const item of items) {
+        queue.delete(item.id);
+        for (const frame of item.frames) removeShot(frame.image);
+      }
+      return send(res, { ok: true, count: items.length });
+    }
     if (req.method === 'PATCH' && path.startsWith('/api/records/')) {
       const id = path.split('/').pop(); const b = await body(req);
       const item = record(db.prepare('SELECT * FROM records WHERE id=?').get(id));
@@ -323,12 +381,26 @@ server.on('error', error => {
 });
 server.listen(port, '127.0.0.1', () => {
   port = server.address().port;
-  console.log(desktopToken ? JSON.stringify({ type: 'ready', port }) : `Jev-dashcam is ready at http://localhost:${port}`);
+  console.log(desktopToken ? JSON.stringify({ type: 'ready', port }) : `Dashcam is ready at http://localhost:${port}`);
   if (projectMigration?.groups) event(`已将 ${projectMigration.captures} 张历史截图补合并为 ${projectMigration.groups} 个项目；按来源、标题与时间推断，原资料库已备份`);
   if (migration?.groups) event(`已将 ${migration.groups} 组旧资料拆为 ${migration.captures} 张截图，正在逐张归类；原资料已备份`);
-  for (const item of allRecords().filter(r => r.status === 'pending')) schedule(item.id);
+  for (const item of allRecords().filter(r => r.status === 'pending')) schedule(item.id, { preserveSnapshot: true });
 });
-function shutdown() { collector?.kill(); server.close(); db.close(); process.exit(0); }
+async function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  clearInterval(cleanupTimer);
+  server.close();
+  await Promise.all([...captureChildren].map(child => new Promise(resolve => {
+    const deadline = setTimeout(() => child.kill('SIGKILL'), 3000);
+    child.once('close', () => { clearTimeout(deadline); resolve(); });
+    child.kill('SIGTERM');
+  })));
+  while (cleaning) await new Promise(resolve => setTimeout(resolve, 10));
+  // The process exits only after helpers have stopped writing screenshots.
+  db.close();
+  process.exit(0);
+}
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, shutdown);
 // The desktop owns this pipe. EOF also cleans up after an unexpected App exit.
 if (desktopToken) { process.stdin.resume(); process.stdin.on('end', shutdown); }

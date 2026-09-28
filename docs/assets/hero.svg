@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="650" viewBox="0 0 1280 650" role="img" aria-labelledby="title desc">
-  <title id="title">Jev-dashcam：让阅读留下线索，让 AI 接上思考</title>
+  <title id="title">Dashcam：让阅读留下线索，让 AI 接上思考</title>
   <desc id="desc">产品流程示意：日常浏览经过本地截图和 OCR，由 Jev 按关注目标判断相关性，保留原始证据，再通过话题快照交给 Agent。</desc>
   <defs>
     <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M 32 0 L 0 0 0 32" fill="none" stroke="#e5e7de" stroke-width="1"/></pattern>
@@ -10,9 +10,9 @@
   <g font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif">
     <rect x="48" y="42" width="36" height="36" rx="11" fill="#244c37"/>
     <path d="M57 51h18v18H57z M62 56h8M62 61h8M62 66h5" fill="none" stroke="#d9edb7" stroke-width="2"/>
-    <text x="98" y="68" font-size="24" font-weight="650" fill="#203a2b">Jev-dashcam</text>
+    <text x="98" y="68" font-size="24" font-weight="650" fill="#203a2b">Dashcam</text>
     <rect x="994" y="44" width="238" height="32" rx="16" fill="#e3eadb"/>
-    <text x="1113" y="65" text-anchor="middle" font-size="13" letter-spacing="2" fill="#476142">HACKATHON PROTOTYPE</text>
+    <text x="1113" y="65" text-anchor="middle" font-size="13" letter-spacing="2" fill="#476142">NATIVE MAC APP</text>
     <text x="48" y="151" font-size="49" font-weight="700" letter-spacing="-1" fill="#203a2b">让阅读留下线索，</text>
     <text x="48" y="214" font-size="49" font-weight="700" letter-spacing="-1" fill="#203a2b">让 AI 接上思考。</text>
     <text x="51" y="254" font-size="20" fill="#66715f">日常浏览 → 目标驱动的资料库 → 有据可查的 Agent 上下文</text>

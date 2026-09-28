@@ -1,0 +1,186 @@
+{
+  "fill-specializations": [
+    {
+      "value": {
+        "solid": "srgb:0.98039,0.98431,0.97647,1.00000"
+      }
+    },
+    {
+      "appearance": "dark",
+      "value": {
+        "solid": "srgb:0.11373,0.14118,0.12549,1.00000"
+      }
+    },
+    {
+      "appearance": "tinted",
+      "value": {
+        "solid": "srgb:0.96078,0.96471,0.96078,1.00000"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Record indicator",
+      "layers": [
+        {
+          "name": "Record indicator",
+          "image-name": "03-record-dot.svg",
+          "glass": false,
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.92941,0.38824,0.29020,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:1.00000,0.47451,0.36863,1.00000"
+              }
+            },
+            {
+              "appearance": "tinted",
+              "value": {
+                "solid": "srgb:0.27059,0.29412,0.27843,1.00000"
+              }
+            }
+          ]
+        }
+      ],
+      "lighting": "individual",
+      "specular": false,
+      "shadow": {
+        "kind": "none",
+        "opacity": 0
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0
+      },
+      "blur-material": 0
+    },
+    {
+      "name": "Window title",
+      "layers": [
+        {
+          "name": "Window title",
+          "image-name": "04-window-bar.svg",
+          "glass": false,
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.32157,0.43922,0.36863,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.31373,0.40784,0.33725,1.00000"
+              }
+            },
+            {
+              "appearance": "tinted",
+              "value": {
+                "solid": "srgb:0.38039,0.43529,0.40000,1.00000"
+              }
+            }
+          ]
+        }
+      ],
+      "lighting": "individual",
+      "specular": false,
+      "shadow": {
+        "kind": "none",
+        "opacity": 0
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0
+      },
+      "blur-material": 0
+    },
+    {
+      "name": "Front glass window",
+      "layers": [
+        {
+          "name": "Front glass window",
+          "image-name": "02-front-window.svg",
+          "glass": true,
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.91373,0.93725,0.91765,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.79216,0.84706,0.80784,1.00000"
+              }
+            },
+            {
+              "appearance": "tinted",
+              "value": {
+                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
+              }
+            }
+          ]
+        }
+      ],
+      "lighting": "individual",
+      "specular": true,
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.24
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.35
+      },
+      "blur-material": 0.22
+    },
+    {
+      "name": "Rear glass window",
+      "layers": [
+        {
+          "name": "Rear glass window",
+          "image-name": "01-rear-window.svg",
+          "glass": true,
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.47059,0.56863,0.51765,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.40000,0.49804,0.43529,1.00000"
+              }
+            },
+            {
+              "appearance": "tinted",
+              "value": {
+                "solid": "srgb:0.63529,0.66275,0.64314,1.00000"
+              }
+            }
+          ]
+        }
+      ],
+      "lighting": "individual",
+      "specular": true,
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.18
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.04
+      },
+      "blur-material": 0
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}

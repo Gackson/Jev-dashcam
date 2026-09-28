@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const project = dirname(dirname(fileURLToPath(import.meta.url)));
 const source = resolve(process.env.JEV_MIGRATE_SOURCE || join(project, 'data'));
-const target = resolve(process.env.JEV_APP_DATA_DIR || join(homedir(), 'Library', 'Application Support', 'Jev Note'));
+const target = resolve(process.env.JEV_APP_DATA_DIR || join(homedir(), 'Library', 'Application Support', 'Dashcam'));
 if (existsSync(target)) throw new Error(`目标目录已存在，未覆盖任何数据：${target}`);
 if (!existsSync(join(source, 'jev.sqlite'))) throw new Error('找不到旧版资料库');
 mkdirSync(dirname(target), { recursive: true });

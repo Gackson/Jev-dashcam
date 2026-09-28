@@ -2,12 +2,12 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Jev-dashcam · 让知识自然生长</title>
+  <title>Dashcam · 让知识自然生长</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <aside class="sidebar">
-    <a class="brand" href="/" aria-label="Jev-dashcam 首页"><img src="/favicon.svg" alt=""><span>Jev<span class="brand-note">-dashcam</span></span></a>
+    <a class="brand" href="/" aria-label="Dashcam 首页"><img src="/favicon.svg" alt=""><span>Dashcam</span></a>
     <div class="workspace"><span class="avatar">J</span><div>我的知识花园<small>PERSONAL SPACE</small></div><span class="local-dot" title="本地工作空间"></span></div>
     <nav aria-label="资料导航" id="navigation"></nav>
     <div class="section-label">关注的话题 <button class="icon-button" id="add-topic-small" aria-label="添加话题">＋</button></div>
@@ -35,7 +35,7 @@
   </div>
   <dialog id="topic-dialog"><form id="topic-form"><div class="dialog-top"><span class="eyebrow">A NEW SEED</span><button type="button" class="icon-button" data-close aria-label="关闭">×</button></div><h2>最近，你在关注什么？</h2><p class="dialog-description">告诉 Jev 你想了解的事，它会帮你留意相关内容。</p><label>话题名称<input name="name" required maxlength="60" placeholder="比如：AI 笔记产品" autocomplete="off"></label><label>具体关注什么 <span class="optional">可选</span><textarea name="description" rows="4" maxlength="1000" placeholder="比如：自动收集、个人知识库、信息整理工具和相关竞品。描述越具体，归类越准确。"></textarea></label><div class="dialog-actions"><button type="button" class="subtle" data-close>取消</button><button class="primary" type="submit">创建话题 ↗</button></div></form></dialog>
   <dialog id="import-dialog"><form id="import-form"><div class="dialog-top"><span class="eyebrow">KEEP A THOUGHT</span><button type="button" class="icon-button" data-close aria-label="关闭">×</button></div><h2>把好内容留下来</h2><p class="dialog-description">粘贴一段文字，Jev 会自动匹配你关注的话题。</p><label>标题<input name="title" maxlength="180" placeholder="这份内容叫什么？"></label><label>原文<textarea name="text" required minlength="10" maxlength="100000" rows="7" placeholder="粘贴至少 10 个字的内容…"></textarea></label><label>来源链接 <span class="optional">可选</span><input name="url" type="url" placeholder="https://"></label><div class="dialog-actions"><button type="button" class="subtle" data-close>取消</button><button class="primary" type="submit">收集并归类 ↗</button></div></form></dialog>
-  <dialog id="capture-dialog"><div class="dialog-top"><span class="eyebrow">LET CURIOSITY LEAD</span><button class="icon-button" data-close aria-label="关闭">×</button></div><h2>开启你的收集助手</h2><p class="dialog-description">Jev 会留意前台窗口的变化，在内容稳定后提取文字。</p><div class="capture-explainer"><p><b>01</b><span>截图与原文保存在这台 Mac。</span></p><p><b>02</b><span>识别出的文字发送至 TypeSafe，用于话题归类。</span></p><p><b>03</b><span>随时暂停。Jev-dashcam 自身和密码应用会跳过。</span></p></div><p class="small-help">首次使用需要 macOS 屏幕录制授权。尚未匹配的话题资料会保留在「待整理」。</p><div class="dialog-actions"><button class="subtle" data-close>稍后</button><button class="primary" id="confirm-capture">开始采集 ↗</button></div></dialog>
+  <dialog id="capture-dialog"><div class="dialog-top"><span class="eyebrow">LET CURIOSITY LEAD</span><button class="icon-button" data-close aria-label="关闭">×</button></div><h2>开启你的收集助手</h2><p class="dialog-description">Jev 会留意前台窗口的变化，在内容稳定后提取文字。</p><div class="capture-explainer"><p><b>01</b><span>截图与原文保存在这台 Mac。</span></p><p><b>02</b><span>识别出的文字发送至 TypeSafe，用于话题归类。</span></p><p><b>03</b><span>随时暂停。Dashcam 自身和密码应用会跳过。</span></p></div><p class="small-help">首次使用需要 macOS 屏幕录制授权。尚未匹配的话题资料会保留在「待整理」。</p><div class="dialog-actions"><button class="subtle" data-close>稍后</button><button class="primary" id="confirm-capture">开始采集 ↗</button></div></dialog>
   <dialog id="detail-dialog" class="detail-dialog"><div id="detail-content"></div></dialog>
   <div id="toast" class="toast" role="status" hidden></div>
   <script type="module" src="/app.js"></script>

@@ -5,6 +5,8 @@ let gardenGreen = Color(red: 0.28, green: 0.43, blue: 0.34)
 
 struct LibraryView: View {
     @EnvironmentObject var store: NoteStore
+    @State private var editingTopic: Topic?
+    @State private var showingTopicDescription = false
     @State private var deletingTopic: Topic?
     @State private var copiedTopicID: String?
     @State private var collapsedGroups: Set<String> = []
@@ -15,14 +17,22 @@ struct LibraryView: View {
                     sidebarRow("全部资料", id: "all", symbol: "tray.full", count: store.records.count)
                     sidebarRow("待整理", id: "unmatched", symbol: "tray", count: store.records.filter { $0.labels.isEmpty }.count)
                     sidebarRow("归类失败", id: "errors", symbol: "exclamationmark.circle", count: store.records.filter { $0.status == "error" }.count)
+                        .contextMenu {
+                            Button("重试全部失败归类") { Task { await store.retryFailed() } }
+                                .disabled(store.busy || !store.ready || !store.records.contains { $0.status == "error" })
+                        }
                     Text("关注的话题").font(.caption.weight(.medium)).foregroundStyle(.secondary)
                         .padding(.horizontal, 12).padding(.top, 20).padding(.bottom, 4)
                     ForEach(store.topics) { topic in
                         sidebarRow(topic.name, id: topic.id, symbol: "number", count: store.records.filter { $0.labels.contains(topic.id) }.count, tint: topic.tint)
-                            .contextMenu { Button("移除话题…", role: .destructive) { deletingTopic = topic } }
+                            .contextMenu {
+                                Button("编辑话题…") { editingTopic = topic }
+                                Button("移除话题…", role: .destructive) { deletingTopic = topic }
+                            }
                     }
-                    Button { store.sheet = .topic } label: { Label("创建话题", systemImage: "plus") }
+                    Button { store.sheet = .topic } label: { Label("添加话题", systemImage: "plus") }
                         .buttonStyle(.plain).foregroundStyle(gardenGreen).padding(12)
+                        .disabled(!store.ready || store.busy)
                 }.padding(10)
             }
             .onMoveCommand { direction in
@@ -31,7 +41,7 @@ struct LibraryView: View {
                 if direction == .down { store.filter = ids[min(index + 1, ids.count - 1)] }
                 if direction == .up { store.filter = ids[max(index - 1, 0)] }
             }
-            .navigationTitle("Jev-dashcam")
+            .navigationTitle("Dashcam")
             .navigationSplitViewColumnWidth(min: 190, ideal: 220, max: 300)
             .safeAreaInset(edge: .bottom) { collector.padding(16) }
         } detail: {
@@ -71,14 +81,13 @@ struct LibraryView: View {
         .frame(minWidth: 980, minHeight: 640)
         .toolbar {
             ToolbarItemGroup {
-                Button { store.sheet = .note } label: { Label("手动录入", systemImage: "square.and.pencil") }.help("手动录入 ⌘N")
                 Button { store.toggleCapture() } label: {
-                    Label(store.status.running ? "暂停采集" : "开始采集", systemImage: store.status.running ? "pause.fill" : "play.fill")
+                    Label(store.status.running ? "Pause Recording" : "Start Recording", systemImage: store.status.running ? "pause.fill" : "record.circle")
+                        .labelStyle(.titleAndIcon)
                 }.disabled(!store.ready || store.busy)
                 Menu {
-                    Button("创建话题…") { store.sheet = .topic }
-                    Button("体验示例") { Task { await store.mutate("api/demo") } }
-                    Button("重试失败归类") { Task { await store.mutate("api/retry") } }
+                    Button("手动录入…") { store.sheet = .note }
+                    Button("体验示例资料") { Task { await store.loadDemo() } }.disabled(store.busy || !store.ready)
                     Divider()
                     Button("导出资料…") { store.export() }
                     Button("在 Finder 中查看数据") { store.openData() }
@@ -90,20 +99,21 @@ struct LibraryView: View {
             if !store.ready {
                 VStack(spacing: 18) {
                     Image(systemName: "leaf.fill").font(.system(size: 36)).foregroundStyle(gardenGreen)
-                    Text("Jev-dashcam").font(.title.weight(.semibold))
+                    Text("Dashcam").font(.title.weight(.semibold))
                     if let failure = store.startupError {
                         Text(failure).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 380)
                         Button("重新启动") { store.start() }.buttonStyle(.borderedProminent)
-                    } else { ProgressView("正在打开你的知识花园…") }
+                    } else { ProgressView(store.migratingStorage ? "正在迁移并校验资料…" : "正在打开你的知识花园…") }
                 }.frame(maxWidth: .infinity, maxHeight: .infinity).background(.regularMaterial)
             }
         }
+        .sheet(item: $editingTopic) { topic in TopicEditor(topic: topic).environmentObject(store) }
         .sheet(item: $store.sheet) { sheet in EditorView(kind: sheet).environmentObject(store) }
         .sheet(item: $store.previewFrame) { frame in ScreenshotPreview(frame: frame).environmentObject(store) }
         .alert("操作未完成", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
             Button("好") { store.error = nil }
         } message: { Text(store.error ?? "") }
-        .alert("Jev-dashcam", isPresented: Binding(get: { store.notice != nil }, set: { if !$0 { store.notice = nil } })) {
+        .alert("Dashcam", isPresented: Binding(get: { store.notice != nil }, set: { if !$0 { store.notice = nil } })) {
             Button("好") { store.notice = nil }
         } message: { Text(store.notice ?? "") }
         .confirmationDialog("移除「\(deletingTopic?.name ?? "")」？资料仍会保留。", isPresented: Binding(get: { deletingTopic != nil }, set: { if !$0 { deletingTopic = nil } })) {
@@ -118,6 +128,7 @@ struct LibraryView: View {
         .onChange(of: store.filter) { _, _ in
             store.selection = nil
             copiedTopicID = nil
+            showingTopicDescription = false
         }
         .onChange(of: store.organization.grouping) { _, _ in collapsedGroups.removeAll() }
         .onChange(of: store.projects.map(\.id)) { _, ids in
@@ -127,7 +138,29 @@ struct LibraryView: View {
     var topicHeader: some View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 5) {
-                Text(store.heading).font(.title2.weight(.semibold))
+                if let topic = store.selectedTopic {
+                    Button { showingTopicDescription.toggle() } label: {
+                        HStack(spacing: 6) {
+                            Text(topic.name).font(.title2.weight(.semibold)).lineLimit(2)
+                            Image(systemName: "info.circle").font(.callout).foregroundStyle(.secondary)
+                        }
+                    }.buttonStyle(.plain).help("查看话题简介").accessibilityLabel("查看话题简介：\(topic.name)")
+                        .popover(isPresented: $showingTopicDescription) {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text(topic.name).font(.headline).textSelection(.enabled)
+                                ScrollView {
+                                    Text(topic.description.isEmpty ? "尚未填写简介" : topic.description)
+                                        .frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
+                                }.frame(maxHeight: 220)
+                                HStack {
+                                    Spacer()
+                                    Button("编辑话题…") { showingTopicDescription = false; editingTopic = topic }
+                                }
+                            }.padding(20).frame(width: 360)
+                        }
+                } else {
+                    Text(store.heading).font(.title2.weight(.semibold))
+                }
                 Text("\(store.projects.count) 个项目 · \(store.filtered.count) 份资料" + (hasFilters ? " / 共 \(store.scopedRecords.count) 份" : ""))
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -152,6 +185,10 @@ struct LibraryView: View {
                     .task { try? await Task.sleep(for: .seconds(4)); copiedTopicID = nil }
                 }
             }
+            if store.filter == "errors" {
+                Button("重试全部失败归类", systemImage: "arrow.clockwise") { Task { await store.retryFailed() } }
+                    .disabled(store.busy || !store.ready || !store.records.contains { $0.status == "error" })
+            }
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -168,9 +205,9 @@ struct LibraryView: View {
                     VStack(spacing: 14) {
                         Image(systemName: !hasFilters ? "leaf" : "magnifyingglass")
                             .font(.system(size: 38, weight: .light)).foregroundStyle(.tertiary)
-                        Text(!hasFilters ? "让看过的，成为你的。" : "没有符合条件的资料")
+                        Text(hasFilters ? "没有符合条件的资料" : store.filter == "errors" ? "没有归类失败的资料" : store.selectedTopic != nil ? "这个话题还没有资料" : "让看过的，成为你的。")
                             .font(.title2.weight(.semibold))
-                        Text(!hasFilters ? "创建一个关注话题，或先留下一段文字。" : "试试其他来源、日期或关键词。")
+                        Text(hasFilters ? "试试其他来源、日期或关键词。" : store.filter == "errors" ? "后续归类失败的资料会出现在这里。" : store.selectedTopic != nil ? "开始记录或手动录入，相关资料会自动归入本话题。" : "手动录入一段文字，或查看示例了解自动归类。")
                             .foregroundStyle(.secondary)
                         if hasFilters {
                             Button("清除筛选与搜索") {
@@ -178,11 +215,13 @@ struct LibraryView: View {
                                 store.organization.dateRange = .all
                                 store.search = ""
                             }
-                        } else {
+                        } else if store.filter != "errors" {
                             HStack {
                                 Button("手动录入") { store.sheet = .note }
-                                Button("体验示例") { Task { await store.mutate("api/demo") } }.disabled(store.busy)
+                                Button("体验示例资料") { Task { await store.loadDemo() } }.disabled(store.busy || !store.ready)
                             }.padding(.top, 4)
+                            Text("示例包含 4 份合成文字资料，由 Jev 归类；已有示例会直接打开。")
+                                .font(.caption).foregroundStyle(.secondary)
                         }
                     }
                     .multilineTextAlignment(.center)
@@ -217,6 +256,7 @@ struct LibraryView: View {
                                                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(store.selection == note.id ? gardenGreen : Color.primary.opacity(0.08), lineWidth: store.selection == note.id ? 2 : 1))
                                                 .contentShape(RoundedRectangle(cornerRadius: 12))
                                                 .onTapGesture { store.selection = store.selection == note.id ? nil : note.id }
+                                                .modifier(ProjectActions(project: note))
                                                 .id(note.id)
                                     }
                                 }
@@ -262,12 +302,23 @@ struct LibraryView: View {
     }
     var collector: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 7) {
-                Circle().fill(store.status.running ? gardenGreen : Color.secondary).frame(width: 7, height: 7)
-                Text(store.status.running ? "正在留意新内容" : "采集已暂停").font(.callout.weight(.medium))
-                Spacer()
+            Button { store.toggleCapture() } label: {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 7) {
+                        Circle().fill(store.status.running ? gardenGreen : Color.secondary).frame(width: 7, height: 7)
+                        Text(store.status.running ? "正在留意新内容" : "采集已暂停").font(.callout.weight(.medium))
+                        Spacer()
+                    }
+                    Text(store.status.message).font(.caption).foregroundStyle(.secondary).lineLimit(3)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
-            Text(store.status.message).font(.caption).foregroundStyle(.secondary).lineLimit(3)
+            .buttonStyle(.plain)
+            .disabled(!store.ready || store.busy)
+            .help(store.status.running ? "点击暂停录制" : "点击开始录制")
+            .accessibilityLabel(store.status.running ? "暂停录制" : "开始录制")
+            .accessibilityValue(store.status.message)
             if let error = store.status.error {
                 Text(error).font(.caption).foregroundStyle(.orange)
                 Button("打开屏幕录制设置") { store.openPermissions() }.font(.caption)
@@ -362,7 +413,7 @@ struct ScreenshotView: View {
                     }
             }
         }
-        .task(id: "\(frame.image):\(maxPixelSize)") {
+        .task(id: "\(store.directory.path):\(frame.image):\(maxPixelSize)") {
             finished = false
             let loaded = await store.screenshot(frame, maxPixelSize: maxPixelSize)
             guard !Task.isCancelled else { return }
@@ -418,7 +469,7 @@ struct NoteDetail: View {
                 if let error = note.error {
                     VStack(alignment: .leading, spacing: 10) {
                         Label(error, systemImage: "exclamationmark.circle").font(.callout).foregroundStyle(.orange)
-                        Button("重试归类") { Task { await store.mutate("api/retry") } }.disabled(store.busy)
+                        Button("重试此资料归类") { Task { await store.retryFailed(ids: [note.id]) } }.disabled(store.busy)
                     }.padding(14).frame(maxWidth: .infinity, alignment: .leading).background(Color.orange.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
                 }
                 if !store.topics.isEmpty {
@@ -487,7 +538,7 @@ struct EditorView: View {
                 Text("Jev 会留意前台窗口的变化，在内容稳定后提取文字。").foregroundStyle(.secondary)
                 Label("截图与原文保存在这台 Mac。", systemImage: "internaldrive")
                 Label("识别文字会发送至 TypeSafe，用于话题归类。", systemImage: "sparkles")
-                Label("可随时暂停；跳过 Jev-dashcam 和已知密码应用。", systemImage: "pause.circle")
+                Label("可随时暂停；跳过 Dashcam 和已知密码应用。", systemImage: "pause.circle")
                 Text("首次使用需要 macOS 屏幕录制授权。关闭主窗口后采集会继续，菜单栏可暂停；退出 App 会停止采集。").font(.callout).foregroundStyle(.secondary)
             } else {
                 Text(kind == .topic ? "描述你的关注目标，Jev 会帮你留意相关内容。" : "粘贴至少 10 个字，Jev 会匹配你关注的话题。").foregroundStyle(.secondary)
@@ -500,7 +551,7 @@ struct EditorView: View {
             HStack {
                 Spacer()
                 Button("取消") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button(kind == .topic ? "创建话题" : kind == .note ? "收集并归类" : "开始采集") {
+                Button(kind == .topic ? "创建话题" : kind == .note ? "收集并归类" : "Start Recording") {
                     Task {
                         let path = kind == .topic ? "api/topics" : kind == .note ? "api/import" : "api/capture/start"
                         let body: [String: Any] = kind == .topic ? ["name": title, "description": text] : kind == .note ? ["title": title, "text": text, "url": url] : [:]
@@ -537,18 +588,16 @@ struct SettingsView: View {
                 }
                 if !message.isEmpty { Text(message).foregroundStyle(gardenGreen) }
                 if let error = store.error { Text(error).foregroundStyle(.red) }
-                Button("重试失败的归类") { Task { await store.mutate("api/retry") } }.disabled(!store.ready || store.busy)
             }
             CapturePreferencesSettings()
             WindowExclusionSettings()
-            Section("采集与存储") {
+            StorageSettings()
+            Section("采集与导出") {
                 Button("打开屏幕录制权限设置") { store.openPermissions() }
-                Text("允许 Jev-dashcam 录制屏幕后，请退出并重新打开 App。采集始终由你手动开启。").font(.caption).foregroundStyle(.secondary)
-                Button("在 Finder 中查看数据") { store.openData() }
-                Text(store.directory.path).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                Text("允许 Dashcam 录制屏幕后，请退出并重新打开 App。采集始终由你手动开启。").font(.caption).foregroundStyle(.secondary)
                 Button("导出资料为 JSON…") { store.export() }.disabled(!store.ready)
             }
-            Section { Text("Jev-dashcam 0.2 · macOS 原生版\n文字识别在本机完成，归类文字发送至 TypeSafe。").font(.caption).foregroundStyle(.secondary) }
+            Section { Text("Dashcam \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "开发版") · macOS 原生版\n文字识别在本机完成，归类文字发送至 TypeSafe。").font(.caption).foregroundStyle(.secondary) }
         }.formStyle(.grouped).padding(8).frame(width: 620, height: 680).tint(gardenGreen)
             .onAppear { model = store.status.model }
     }

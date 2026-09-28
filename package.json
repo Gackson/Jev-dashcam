@@ -1,6 +1,6 @@
 {
   "name": "jev-dashcam",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,9 +9,11 @@
     "dev": "node --watch server.mjs",
     "test": "node --test tests/*.test.mjs",
     "build:mac": "bash scripts/build-mac.sh",
-    "start:mac": "open \"build/Jev-dashcam.app\"",
+    "install:mac": "bash scripts/install-mac.sh",
+    "start:mac": "open \"$HOME/Applications/Dashcam.app\"",
     "migrate:mac": "node scripts/migrate-mac.mjs",
-    "test:mac": "bash scripts/test-mac.sh"
+    "test:mac": "bash scripts/test-mac.sh",
+    "test:storage:mac": "bash scripts/test-storage-mac.sh"
   },
   "engines": {
     "node": ">=22.13"

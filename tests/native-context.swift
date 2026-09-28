@@ -60,6 +60,8 @@ struct TopicContextTests {
         }
         store.search = ""; store.records = [groupedA, groupedB]
         precondition(store.projects.first?.notes.map(\.id) == ["session-a"], "Projects never bring other-topic screenshots into a topic")
+        precondition(store.members(of: store.projects[0]).map(\.id) == ["session-a", "session-b"], "Explicit whole-group actions include topic-filtered members")
+        precondition(store.members(of: NoteProject(id: "session-a", notes: [groupedA])).count == 2)
         store.selection = store.projects[0].id
         precondition(store.selected?.notes.count == 1)
         store.records = [newCapture, groupedA, groupedB]

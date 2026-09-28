@@ -30,7 +30,7 @@ test('custom timeout and missing focus observations do not join unrelated browsi
   assert.notEqual(sessions.observe('A',300000,120),first,'Sleep/unobserved gaps split sessions');
   const previous=sessions.observe('A',301000,120);
   sessions.reset();assert.notEqual(sessions.observe('A',302000,120),previous);
-  assert.deepEqual(capturePreferences({}),{windowReturnSeconds:60});
+  assert.deepEqual(capturePreferences({}),{windowReturnSeconds:60,pendingRetentionHours:1});
   for(const value of [-1,3601,1.5,'60']) assert.throws(()=>capturePreferences({windowReturnSeconds:value}));
 });
 test('retention keeps at least one hour, protects paused capture and completed / active / manual records, and caps batches', () => {
@@ -47,5 +47,8 @@ test('retention keeps at least one hour, protects paused capture and completed /
   assert.deepEqual(expiredPendingCaptures(db,{recording:false,now}),[]);
   assert.deepEqual(expiredPendingCaptures(db,{recording:true,now}).map(r=>r.id),['expired']);
   assert.equal(expiredPendingCaptures(db,{recording:true,now:now+3600000,limit:2}).length,2);
+  assert.deepEqual(expiredPendingCaptures(db,{recording:true,now,retentionHours:0}),[],'Keep forever disables cleanup');
+  assert.deepEqual(expiredPendingCaptures(db,{recording:true,now,retentionHours:6}),[],'Custom duration keeps younger backlog');
+  assert.equal(expiredPendingCaptures(db,{recording:true,now:now+6*3600000,retentionHours:6}).length,3);
   db.close();
 });

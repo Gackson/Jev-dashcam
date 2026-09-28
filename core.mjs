@@ -48,7 +48,7 @@ export function labelIds(record, topics, threshold = 0.75) {
 export async function classify(document, topics, options = {}) {
   const key = options.key ?? process.env.TYPESAFE_API_KEY;
   if (!topics.length) return { scores: {}, model: null };
-  if (!key) throw new Error(process.env.JEV_DESKTOP_TOKEN ? '请在 Jev Note 设置中填写 TypeSafe API Key，再重试归类' : '请在 .env 中配置 TYPESAFE_API_KEY，再重试归类');
+  if (!key) throw new Error(process.env.JEV_DESKTOP_TOKEN ? '请在 Dashcam 设置中填写 TypeSafe API Key，再重试归类' : '请在 .env 中配置 TYPESAFE_API_KEY，再重试归类');
   const call = options.fetch ?? fetch;
   let response;
   for (let attempt = 0; attempt < 3; attempt++) {

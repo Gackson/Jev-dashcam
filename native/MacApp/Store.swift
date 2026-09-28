@@ -75,7 +75,17 @@ struct CollectorStatus: Decodable, Equatable {
     static let empty = CollectorStatus(capture: "paused", message: "准备好后，开始收集你的灵感", app: "", samples: 0, duplicates: 0, queue: 0, modelConfigured: false, model: "jev-latest", helperReady: false)
 }
 struct Activity: Decodable, Identifiable, Equatable { let id: String; let message: String; let type: String; let time: String }
-struct CapturePreferences: Codable, Equatable { var windowReturnSeconds: Int = 60 }
+struct CapturePreferences: Codable, Equatable {
+    var windowReturnSeconds = 60
+    var pendingRetentionHours = 1
+    init() {}
+    enum CodingKeys: String, CodingKey { case windowReturnSeconds, pendingRetentionHours }
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        windowReturnSeconds = try values.decodeIfPresent(Int.self, forKey: .windowReturnSeconds) ?? 60
+        pendingRetentionHours = try values.decodeIfPresent(Int.self, forKey: .pendingRetentionHours) ?? 1
+    }
+}
 struct Snapshot: Decodable { let topics: [Topic]; let records: [Note]; let status: CollectorStatus; let events: [Activity]; var windowExclusions: [WindowExclusion]? = nil; var capturePreferences: CapturePreferences? = nil }
 struct AppError: LocalizedError { let message: String; var errorDescription: String? { message } }
 enum EditorSheet: String, Identifiable { case topic, note, capture; var id: String { rawValue } }
@@ -109,13 +119,24 @@ final class NoteStore: ObservableObject {
     private var endpoint: URL?
     private var token = ""
     private var refreshing = false
-    let directory: URL
+    @Published private(set) var directory: URL
+    @Published private(set) var migratingStorage = false
+    @Published private(set) var storageMessage: String?
+    @Published private(set) var storageError: String?
+    private var preparing: Task<Void, Never>?
+    private var stoppingProcess: Process?
+    private var usesSavedLocation: Bool
 
     init() {
         if let override = ProcessInfo.processInfo.environment["JEV_APP_DATA_DIR"] {
             directory = URL(fileURLWithPath: override, isDirectory: true)
+            usesSavedLocation = false
+        } else if let saved = UserDefaults.standard.string(forKey: StorageLocation.preferenceKey) {
+            directory = URL(fileURLWithPath: saved, isDirectory: true)
+            usesSavedLocation = true
         } else {
-            directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Jev Note", isDirectory: true)
+            directory = StorageLocation.defaultDirectory
+            usesSavedLocation = false
         }
     }
     var scopedRecords: [Note] {
@@ -141,6 +162,14 @@ final class NoteStore: ObservableObject {
     var projects: [NoteProject] { NoteProject.collect(filtered) }
     var selected: NoteProject? { projects.first { $0.id == selection } }
     var selectedTopic: Topic? { topics.first { $0.id == filter } }
+    func members(of project: NoteProject) -> [Note] {
+        // A card's menu acts on its full session, including members hidden by a
+        // topic or presentation filter. Detail controls still affect one record.
+        if project.cover.kind == "capture", let session = project.cover.session_id {
+            return records.filter { $0.kind == "capture" && $0.session_id == session }
+        }
+        return records.filter { $0.id == project.cover.id }
+    }
 
     func copyTopicPrompt(_ topic: Topic) -> Bool {
         do {
@@ -155,7 +184,34 @@ final class NoteStore: ObservableObject {
     }
 
     func start() {
-        guard process == nil else { return }
+        guard process == nil, !starting, !migratingStorage else { return }
+        starting = true; startupError = nil
+        preparing = Task {
+            do {
+                if usesSavedLocation && !FileManager.default.fileExists(atPath: directory.appendingPathComponent("jev.sqlite").path) {
+                    throw AppError(message: "找不到已设置的资料库，请连接对应磁盘后重试，可在设置中查看当前存储位置。原资料不会被覆盖。")
+                }
+                if !usesSavedLocation,
+                   ProcessInfo.processInfo.environment["JEV_APP_DATA_DIR"] == nil,
+                   !FileManager.default.fileExists(atPath: directory.appendingPathComponent("jev.sqlite").path),
+                   FileManager.default.fileExists(atPath: StorageLocation.legacyDirectory.appendingPathComponent("jev.sqlite").path) {
+                    migratingStorage = true
+                    defer { migratingStorage = false }
+                    try await StorageLocation.transfer(from: StorageLocation.legacyDirectory, to: directory)
+                    storageMessage = "已迁移旧版资料。原文件夹保留为备份：\(StorageLocation.legacyDirectory.path)"
+                }
+                guard !Task.isCancelled else { return }
+                launchService()
+            } catch {
+                starting = false; startupError = error.localizedDescription
+            }
+        }
+    }
+    private func launchService() {
+        guard process == nil, stoppingProcess?.isRunning != true else {
+            starting = false; startupError = "旧服务尚未退出，请稍后重试。"; return
+        }
+        stoppingProcess = nil
         starting = true; startupError = nil; stdoutBuffer = Data()
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
@@ -199,7 +255,7 @@ final class NoteStore: ObservableObject {
                 self.stop(); self.startupError = "本地服务启动超时，请重试。"
             }
         } catch {
-            stop(); startupError = "无法启动 Jev-dashcam：\(error.localizedDescription)"
+            stop(); startupError = "无法启动 Dashcam：\(error.localizedDescription)"
         }
     }
     private func receive(_ data: Data) {
@@ -219,12 +275,73 @@ final class NoteStore: ObservableObject {
         }
     }
     func stop() {
+        preparing?.cancel(); preparing = nil
         timer?.cancel(); timer = nil; startDeadline?.cancel(); startDeadline = nil
         output?.fileHandleForReading.readabilityHandler = nil
         try? input?.fileHandleForWriting.close()
         let child = process; process = nil
-        if child?.isRunning == true { child?.terminate() }
+        if child?.isRunning == true { stoppingProcess = child; child?.terminate() }
         input = nil; output = nil; endpoint = nil; ready = false; starting = false
+    }
+    func chooseStorageLocation() {
+        guard !busy, !starting, !migratingStorage else { return }
+        let panel = NSOpenPanel()
+        panel.title = "选择 Dashcam 资料存储位置"
+        panel.message = "选择或新建空文件夹，现有资料将迁移到这里。"
+        panel.prompt = "迁移到此位置"
+        panel.canChooseDirectories = true; panel.canChooseFiles = false
+        panel.canCreateDirectories = true; panel.allowsMultipleSelection = false
+        panel.directoryURL = directory.deletingLastPathComponent()
+        panel.begin { [weak self] result in
+            Task { @MainActor in
+                guard result == .OK, let target = panel.url, let self else { return }
+                await self.moveStorage(to: target)
+            }
+        }
+    }
+    func stopAndWait() async throws {
+        stop()
+        for _ in 0..<150 {
+            if stoppingProcess?.isRunning != true { stoppingProcess = nil; return }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        throw AppError(message: "采集服务尚未完全停止，未迁移任何资料。请稍后重试。")
+    }
+    func moveStorage(to target: URL) async {
+        guard !busy, !migratingStorage else { return }
+        busy = true; migratingStorage = true; storageMessage = nil; storageError = nil
+        defer { busy = false; migratingStorage = false }
+        let original = directory
+        var stopped = false
+        do {
+            // Reject an unsafe destination before interrupting recording.
+            try await StorageLocation.transfer(from: original, to: target, validateOnly: true)
+            stopped = true
+            try await stopAndWait()
+            try await StorageLocation.transfer(from: original, to: target)
+            directory = target.resolvingSymlinksInPath().standardizedFileURL
+            launchService()
+            for _ in 0..<150 {
+                if ready || startupError != nil { break }
+                try await Task.sleep(for: .milliseconds(100))
+            }
+            guard ready else { throw AppError(message: startupError ?? "新位置的服务启动超时。") }
+            let snapshot = try JSONDecoder().decode(Snapshot.self, from: await request("api/state"))
+            apply(snapshot)
+            UserDefaults.standard.set(directory.path, forKey: StorageLocation.preferenceKey)
+            usesSavedLocation = true
+            storageMessage = "迁移完成。后续资料保存到新位置；原位置保留为备份：\(original.path)。录制已暂停。"
+        } catch {
+            let reason = error.localizedDescription
+            if stopped {
+                do {
+                    try await stopAndWait()
+                    directory = original
+                    launchService()
+                } catch { startupError = error.localizedDescription }
+            }
+            storageError = "未切换存储位置：\(reason)"
+        }
     }
     func request(_ path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> Data {
         guard let endpoint else { throw AppError(message: "本地服务尚未就绪") }
@@ -244,15 +361,16 @@ final class NoteStore: ObservableObject {
     }
     func refresh() async {
         guard !refreshing, ready else { return }
+        let serviceToken = token
         refreshing = true; defer { refreshing = false }
         do {
             let data = try await request("api/state")
             let snapshot = try await Task.detached(priority: .utility) {
                 try JSONDecoder().decode(Snapshot.self, from: data)
             }.value
-            guard !Task.isCancelled, ready else { return }
+            guard !Task.isCancelled, ready, serviceToken == token else { return }
             apply(snapshot)
-        } catch { if !Task.isCancelled && ready { self.error = error.localizedDescription } }
+        } catch { if !Task.isCancelled && ready && serviceToken == token { self.error = error.localizedDescription } }
     }
     func apply(_ snapshot: Snapshot) {
         // @Published emits even for equal values. Avoid rebuilding the whole library
@@ -281,6 +399,31 @@ final class NoteStore: ObservableObject {
         struct Response: Decodable { let windows: [AvailableWindow] }
         return try JSONDecoder().decode(Response.self, from: await request("api/windows")).windows
     }
+    func retryFailed(ids: [String]? = nil) async {
+        guard !busy else { return }
+        busy = true; defer { busy = false }
+        do {
+            struct Result: Decodable { let count: Int }
+            let result = try JSONDecoder().decode(Result.self, from: await request("api/retry", method: "POST", body: ids.map { ["ids": $0] } ?? [:]))
+            await refresh()
+            notice = result.count == 0 ? "没有需要重试的失败资料。" : "已将 \(result.count) 份失败资料重新加入归类队列。"
+        } catch { self.error = error.localizedDescription }
+    }
+    func loadDemo() async {
+        guard !busy else { return }
+        busy = true; defer { busy = false }
+        do {
+            struct Result: Decodable { let ids: [String]; let added: Int }
+            let result = try JSONDecoder().decode(Result.self, from: await request("api/demo", method: "POST", body: [:]))
+            filter = "all"; search = ""; organization.source = nil; organization.dateRange = .all; selection = nil
+            await refresh()
+            await Task.yield()
+            selection = projects.first(where: { project in project.notes.contains { result.ids.contains($0.id) } })?.id
+            notice = result.added == 0
+                ? "示例资料已经存在，已为你打开；不会重复添加。示例是 4 份合成文字资料，用于了解 Jev 如何归类到话题。"
+                : "已加入 \(result.added) 份合成示例并打开详情。" + (status.modelConfigured ? "Jev 会按话题进行归类，结果可在话题中查看。" : "请先在设置中配置 TypeSafe API Key，再到「归类失败」页面重试。")
+        } catch { self.error = error.localizedDescription }
+    }
     func saveWindowExclusions(_ rules: [WindowExclusion]) async -> Bool {
         let rows = rules.map { ["id": $0.id, "app": $0.app, "bundleID": $0.bundleID, "title": $0.title, "match": $0.match] }
         return await mutate("api/window-exclusions", body: ["rules": rows])
@@ -294,7 +437,7 @@ final class NoteStore: ObservableObject {
             do {
                 let data = try await request("api/export")
                 let panel = NSSavePanel()
-                panel.nameFieldStringValue = "Jev-dashcam 资料.json"
+                panel.nameFieldStringValue = "Dashcam 资料.json"
                 panel.allowedContentTypes = [.json]
                 guard panel.runModal() == .OK, let url = panel.url else { return }
                 try data.write(to: url, options: .atomic)

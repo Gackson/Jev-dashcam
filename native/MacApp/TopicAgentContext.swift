@@ -30,7 +30,7 @@ struct TopicAgentContext: Encodable {
 
     func prompt(file: URL) -> String {
         """
-        请读取我在 Jev-dashcam 中整理的话题资料库，建立对这个话题的理解，为后续讨论做好准备。
+        请读取我在 Dashcam 中整理的话题资料库，建立对这个话题的理解，为后续讨论做好准备。
 
         本地资料快照（UTF-8 JSON，直接用文件工具读取，无需启动 App 或连接 localhost）：
         \(file.path)
